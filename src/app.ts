@@ -18,7 +18,7 @@ const app = express();
 // CORS para frontend local
 const allowedOrigins = [
   'https://frontend-versus.vercel.app',
-  'http://localhost:4321'
+  'https://front-codex-one.vercel.app'
 ];
 
 app.use(cors({
