@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { pool } from "../database";
-import { RowDataPacket } from "mysql2";
 
 // Crear una nueva pregunta para un encargo
 export async function createPregunta(req: Request, res: Response) {
@@ -32,14 +31,14 @@ export async function createPregunta(req: Request, res: Response) {
     }
 
 
-    const [preguntas] = await pool.query<RowDataPacket[]>(
-      "SELECT COUNT(*) AS total FROM preguntas WHERE id_encargo = ?",
+    const { rows: preguntas } = await pool.query(
+      "SELECT COUNT(*) AS total FROM preguntas WHERE id_encargo = $1",
       [id_encargo]
     );
-    const preguntasActuales = preguntas[0].total;
+    const preguntasActuales = Number(preguntas[0].total);
 
-    const [encargoData] = await pool.query<RowDataPacket[]>(
-      "SELECT numero_preguntas_encargo FROM encargos WHERE id_encargo = ?",
+    const { rows: encargoData } = await pool.query(
+      "SELECT numero_preguntas_encargo FROM encargos WHERE id_encargo = $1",
       [id_encargo]
     );
 
@@ -56,15 +55,15 @@ export async function createPregunta(req: Request, res: Response) {
     }
 
     await pool.query(
-      `INSERT INTO preguntas 
+      `INSERT INTO preguntas
       (enunciado_pregunta, opcion1_pregunta, opcion2_pregunta, opcion3_pregunta, opcion4_pregunta, respuesta_correcta_pregunta, explicacion_pregunta, id_encargo)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         enunciado_pregunta,
         opcion1_pregunta,
         opcion2_pregunta,
         opcion3_pregunta,
-        opcion4_pregunta || "", // esto permite guardar vacío si no se completa
+        opcion4_pregunta || "",
         respuesta_correcta_pregunta,
         explicacion_pregunta || "",
         id_encargo
@@ -84,8 +83,8 @@ export async function getPreguntasByEncargo(req: Request, res: Response) {
     const { id_encargo } = req.params;
 
 
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM preguntas WHERE id_encargo = ?",
+    const { rows } = await pool.query(
+      "SELECT * FROM preguntas WHERE id_encargo = $1",
       [id_encargo]
     );
 
@@ -99,7 +98,7 @@ export async function getPreguntasByEncargo(req: Request, res: Response) {
 // Obtener todas las preguntas
 export async function getAllPreguntas(_req: Request, res: Response) {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM preguntas");
+    const { rows } = await pool.query("SELECT * FROM preguntas");
     return res.status(200).json(rows);
   } catch (error) {
     console.error(error);
@@ -122,8 +121,8 @@ export async function updatePregunta(req: Request, res: Response) {
     } = req.body;
 
 
-    const [existing] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM preguntas WHERE id_pregunta = ?",
+    const { rows: existing } = await pool.query(
+      "SELECT * FROM preguntas WHERE id_pregunta = $1",
       [id_pregunta]
     );
 
@@ -132,15 +131,15 @@ export async function updatePregunta(req: Request, res: Response) {
     }
 
     await pool.query(
-      `UPDATE preguntas SET 
-        enunciado_pregunta = ?, 
-        opcion1_pregunta = ?, 
-        opcion2_pregunta = ?, 
-        opcion3_pregunta = ?, 
-        opcion4_pregunta = ?, 
-        respuesta_correcta_pregunta = ?, 
-        explicacion_pregunta = ? 
-      WHERE id_pregunta = ?`,
+      `UPDATE preguntas SET
+        enunciado_pregunta = $1,
+        opcion1_pregunta = $2,
+        opcion2_pregunta = $3,
+        opcion3_pregunta = $4,
+        opcion4_pregunta = $5,
+        respuesta_correcta_pregunta = $6,
+        explicacion_pregunta = $7
+      WHERE id_pregunta = $8`,
       [
         enunciado_pregunta,
         opcion1_pregunta,
@@ -166,8 +165,8 @@ export async function deletePregunta(req: Request, res: Response) {
     const { id_pregunta } = req.params;
 
 
-    const [existing] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM preguntas WHERE id_pregunta = ?",
+    const { rows: existing } = await pool.query(
+      "SELECT * FROM preguntas WHERE id_pregunta = $1",
       [id_pregunta]
     );
 
@@ -175,7 +174,7 @@ export async function deletePregunta(req: Request, res: Response) {
       return res.status(404).json({ message: "Pregunta no encontrada" });
     }
 
-    await pool.query("DELETE FROM preguntas WHERE id_pregunta = ?", [id_pregunta]);
+    await pool.query("DELETE FROM preguntas WHERE id_pregunta = $1", [id_pregunta]);
 
     return res.status(200).json({ message: "Pregunta eliminada correctamente" });
   } catch (error) {
