@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    /* Target & Module */
+    "target": "es2016",
+    "module": "commonjs",
+
+    /* Emit & Output */
+    "outDir": "dist",         /* Carpeta de salida de los .js compilados */
+    "rootDir": "src",         /* Carpeta raíz de tu código TypeScript */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
