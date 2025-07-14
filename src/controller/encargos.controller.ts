@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { pool } from "../database";
 import type { PoolClient } from "pg";
 import * as ExcelJS from "exceljs";
+import { EncargoPreguntaRow } from "../interface/interface";
 import path from "path";
 
 // GET /encargos/:id_encargo/:pid/:code
@@ -56,7 +57,7 @@ export const downloadEncargoPreguntasExcel = async (
     }
 
     // Rellenar filas a partir de la segunda
-    rows.forEach((r, i) => {
+    rows.forEach((r: EncargoPreguntaRow, i: number) => {
       const rowIndex = 2 + i;
       const row = worksheet.getRow(rowIndex);
 
