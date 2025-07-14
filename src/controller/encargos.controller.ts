@@ -155,7 +155,7 @@ export const getEncargos = async (_req: Request, res: Response): Promise<Respons
   const sql = `
     SELECT 
       e.*, e.id_estado_encargo,
-      IFNULL((
+      COALESCE((
         SELECT COUNT(*) 
         FROM preguntas p 
         WHERE p.id_encargo = e.id_encargo
