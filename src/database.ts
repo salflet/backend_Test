@@ -1,15 +1,8 @@
-// src/database.ts
-import { createPool } from "mysql2/promise";
-import config from "./config";
+import { Pool } from 'pg';
+import config from './config';
 
-const pool = createPool({
-  host: config.DB_HOST,
-  user: config.DB_USER,
-  password: config.DB_PASSWORD,
-  database: config.DB_DATABASE,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
+const pool = new Pool({
+  connectionString: config.SUPABASE_DB_URL,
 });
 
 export default pool;

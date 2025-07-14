@@ -1,12 +1,11 @@
 // src/controller/academias.controller.ts
 import { Request, Response } from 'express';
 import { pool } from '../database';
-import { RowDataPacket, OkPacket, ResultSetHeader } from 'mysql2';
 
 // Obtener todas las academias
 export const getAcademias = async (_req: Request, res: Response): Promise<Response> => {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
+    const { rows } = await pool.query(
       'SELECT id_academia, nombre_academia, color FROM academias'
     );
     return res.json(rows);
@@ -20,8 +19,8 @@ export const getAcademias = async (_req: Request, res: Response): Promise<Respon
 export const getAcademiaById = async (req: Request, res: Response): Promise<Response> => {
   const id = Number(req.params.id);
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id_academia, nombre_academia, color FROM academias WHERE id_academia = ?',
+    const { rows } = await pool.query(
+      'SELECT id_academia, nombre_academia, color FROM academias WHERE id_academia = $1',
       [id]
     );
     if (rows.length === 0) {
@@ -41,13 +40,13 @@ export const createAcademia = async (req: Request, res: Response): Promise<Respo
     color
   }: { nombre_academia: string; color: string } = req.body;
   try {
-    const [result] = await pool.query<OkPacket>(
-      'INSERT INTO academias (nombre_academia, color) VALUES (?, ?)',
+    const { rows } = await pool.query(
+      'INSERT INTO academias (nombre_academia, color) VALUES ($1, $2) RETURNING id_academia',
       [nombre_academia, color]
     );
     return res
       .status(201)
-      .json({ id_academia: result.insertId, nombre_academia, color });
+      .json({ id_academia: rows[0].id_academia, nombre_academia, color });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error al crear academia' });
@@ -62,11 +61,11 @@ export const updateAcademia = async (req: Request, res: Response): Promise<Respo
     color
   }: { nombre_academia: string; color: string } = req.body;
   try {
-    const [result] = await pool.query<ResultSetHeader>(
-      'UPDATE academias SET nombre_academia = ?, color = ? WHERE id_academia = ?',
+    const result = await pool.query(
+      'UPDATE academias SET nombre_academia = $1, color = $2 WHERE id_academia = $3',
       [nombre_academia, color, id]
     );
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Academia no encontrada' });
     }
     return res.json({ message: 'Academia actualizada' });
@@ -80,11 +79,11 @@ export const updateAcademia = async (req: Request, res: Response): Promise<Respo
 export const deleteAcademia = async (req: Request, res: Response): Promise<Response> => {
   const id = Number(req.params.id);
   try {
-    const [result] = await pool.query<ResultSetHeader>(
-      'DELETE FROM academias WHERE id_academia = ?',
+    const result = await pool.query(
+      'DELETE FROM academias WHERE id_academia = $1',
       [id]
     );
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Academia no encontrada' });
     }
     return res.json({ message: 'Academia eliminada' });

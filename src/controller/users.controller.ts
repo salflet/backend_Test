@@ -1,22 +1,23 @@
 // src/controller/users.controller.ts
 import { Request, Response } from "express";
 import { pool } from "../database";
-import { RowDataPacket, OkPacket } from "mysql2";
 
 export const listUsers = async (_req: Request, res: Response): Promise<Response> => {
   try {
-    const [users] = await pool.query<RowDataPacket[]>(
-      `SELECT 
-         id, 
-         username, 
-         email, 
-         full_name, 
-         phone_number, 
-         role_id, 
+    const {
+      rows: users,
+    } = await pool.query(
+      `SELECT
+         id,
+         username,
+         email,
+         full_name,
+         phone_number,
+         role_id,
          id_academia,
-         is_active, 
-         created_at, 
-         updated_at 
+         is_active,
+         created_at,
+         updated_at
        FROM users`
     );
     return res.status(200).json(users);
@@ -40,13 +41,12 @@ export const deleteUser = async (req: Request, res: Response): Promise<Response>
 
   try {
     // Ejecutamos la eliminación
-    const [result] = await pool.query<OkPacket>(
-      "DELETE FROM users WHERE id = ?",
+    const result = await pool.query(
+      "DELETE FROM users WHERE id = $1",
       [Number(id)]
     );
 
-    // OkPacket.affectedRows nos dice cuántas filas eliminó
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 

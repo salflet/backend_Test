@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { pool } from "../database";
-import { RowDataPacket, OkPacket } from "mysql2";
 import config from "../config";
 
 export const signup = async (req: Request, res: Response): Promise<Response> => {
@@ -28,8 +27,8 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
     const phone_number = null;
 
     // Verifica usuario/email
-    const [exists] = await pool.query<RowDataPacket[]>(
-      "SELECT id FROM users WHERE username = ? OR email = ?",
+    const { rows: exists } = await pool.query(
+      "SELECT id FROM users WHERE username = $1 OR email = $2",
       [username, email]
     );
     if (exists.length > 0) {
@@ -38,10 +37,11 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
 
     // Hash de contraseña
     const password_hash = await bcrypt.hash(password, 10);
-    const [result] = await pool.query<OkPacket>(
+    const { rows } = await pool.query(
       `INSERT INTO users
         (username, email, password_hash, full_name, phone_number, role_id, id_academia)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id`,
       [
         username,
         email,
@@ -53,7 +53,7 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
       ]
     );
 
-    return res.status(201).json({ id: result.insertId });
+    return res.status(201).json({ id: rows[0].id });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Error en signup" });
@@ -65,14 +65,14 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
     const { email, password }: { email: string; password: string } = req.body;
 
     // Trae id_academia también
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT id, username, email, password_hash, role_id, id_academia FROM users WHERE email = ?",
+    const { rows } = await pool.query(
+      "SELECT id, username, email, password_hash, role_id, id_academia FROM users WHERE email = $1",
       [email]
     );
     if (rows.length === 0) {
       return res.status(400).json({ message: "Usuario no existe" });
     }
-    const user = rows[0] as RowDataPacket & { password_hash: string; id_academia: number };
+    const user = rows[0] as { password_hash: string; id_academia: number; id: number; username: string; email: string; role_id: number };
 
     // Comprueba contraseña
     const isValid = await bcrypt.compare(password, user.password_hash);

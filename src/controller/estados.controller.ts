@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
 import { pool } from '../database';
-import { RowDataPacket, OkPacket, ResultSetHeader } from 'mysql2';
 
 // Obtener todos los estados
 export const getEstados = async (_req: Request, res: Response): Promise<Response> => {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>('SELECT id_estado, nombre_estado, descripcion_estado FROM estados');
+    const { rows } = await pool.query('SELECT id_estado, nombre_estado, descripcion_estado FROM estados');
     return res.json(rows);
   } catch (error) {
     console.error(error);
@@ -17,8 +16,8 @@ export const getEstados = async (_req: Request, res: Response): Promise<Response
 export const getEstadoById = async (req: Request, res: Response): Promise<Response> => {
   const id = Number(req.params.id);
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id_estado, nombre_estado, descripcion_estado FROM estados WHERE id_estado = ?',
+    const { rows } = await pool.query(
+      'SELECT id_estado, nombre_estado, descripcion_estado FROM estados WHERE id_estado = $1',
       [id]
     );
     if (rows.length === 0) {
@@ -35,11 +34,11 @@ export const getEstadoById = async (req: Request, res: Response): Promise<Respon
 export const createEstado = async (req: Request, res: Response): Promise<Response> => {
   const { nombre_estado, descripcion_estado }: { nombre_estado: string; descripcion_estado?: string } = req.body;
   try {
-    const [result] = await pool.query<OkPacket>(
-      'INSERT INTO estados (nombre_estado, descripcion_estado) VALUES (?, ?)',
+    const { rows } = await pool.query(
+      'INSERT INTO estados (nombre_estado, descripcion_estado) VALUES ($1, $2) RETURNING id_estado',
       [nombre_estado, descripcion_estado || null]
     );
-    return res.status(201).json({ id_estado: result.insertId, nombre_estado, descripcion_estado });
+    return res.status(201).json({ id_estado: rows[0].id_estado, nombre_estado, descripcion_estado });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error al crear estado' });
@@ -51,11 +50,11 @@ export const updateEstado = async (req: Request, res: Response): Promise<Respons
   const id = Number(req.params.id);
   const { nombre_estado, descripcion_estado }: { nombre_estado: string; descripcion_estado?: string } = req.body;
   try {
-    const [result] = await pool.query<ResultSetHeader>(
-      'UPDATE estados SET nombre_estado = ?, descripcion_estado = ? WHERE id_estado = ?',
+    const result = await pool.query(
+      'UPDATE estados SET nombre_estado = $1, descripcion_estado = $2 WHERE id_estado = $3',
       [nombre_estado, descripcion_estado || null, id]
     );
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Estado no encontrado' });
     }
     return res.json({ message: 'Estado actualizado' });
@@ -69,11 +68,11 @@ export const updateEstado = async (req: Request, res: Response): Promise<Respons
 export const deleteEstado = async (req: Request, res: Response): Promise<Response> => {
   const id = Number(req.params.id);
   try {
-    const [result] = await pool.query<ResultSetHeader>(
-      'DELETE FROM estados WHERE id_estado = ?',
+    const result = await pool.query(
+      'DELETE FROM estados WHERE id_estado = $1',
       [id]
     );
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Estado no encontrado' });
     }
     return res.json({ message: 'Estado eliminado' });

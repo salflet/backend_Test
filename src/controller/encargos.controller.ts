@@ -1,8 +1,7 @@
 // src/controller/encargos.controller.ts
 import { Request, Response } from "express";
 import { pool } from "../database";
-import type { PoolConnection } from "mysql2/promise"; 
-import { RowDataPacket, OkPacket, ResultSetHeader } from "mysql2";
+import type { PoolClient } from "pg";
 import * as ExcelJS from "exceljs";
 import path from "path";
 
@@ -24,7 +23,7 @@ export const downloadEncargoPreguntasExcel = async (
 
     // Incluye preguntas de encargo y de hijos (primer nivel)
     const sql = `
-      SELECT 
+      SELECT
         p.enunciado_pregunta,
         p.opcion1_pregunta, p.opcion2_pregunta,
         p.opcion3_pregunta, p.opcion4_pregunta,
@@ -36,12 +35,11 @@ export const downloadEncargoPreguntasExcel = async (
       JOIN encargos e    ON p.id_encargo    = e.id_encargo
       JOIN temas t       ON e.id_tema        = t.id_tema
       JOIN asignaturas a ON e.id_asignatura = a.id_asignatura
-      WHERE e.id_encargo = ?
-         OR e.encargo_padre_id = ?
+      WHERE e.id_encargo = $1
+         OR e.encargo_padre_id = $1
       ORDER BY e.id_encargo, p.id_pregunta
     `;
-    // Pasamos idEncargo dos veces para ambos placeholders
-    const [rows] = await pool.query<RowDataPacket[]>(sql, [idEncargo, idEncargo]);
+    const { rows } = await pool.query(sql, [idEncargo]);
 
     if (!rows.length) {
       res.status(404).json({ message: "No hay preguntas para este encargo ni sus hijos" });
@@ -125,12 +123,13 @@ export const createEncargo = async (req: Request, res: Response): Promise<Respon
       id_academia?: number;
     } = req.body;
 
-    const [result] = await pool.query<OkPacket>(
+    const { rows } = await pool.query(
       `INSERT INTO encargos
          (nombre_encargo, descripcion_encargo, user_id,
           numero_preguntas_encargo, encargo_padre_id,
           id_tema, id_asignatura, id_academia)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id_encargo`,
       [
         nombre_encargo,
         descripcion_encargo || null,
@@ -143,7 +142,7 @@ export const createEncargo = async (req: Request, res: Response): Promise<Respon
       ]
     );
 
-    return res.status(201).json({ id: result.insertId });
+    return res.status(201).json({ id: rows[0].id_encargo });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Error al crear encargo" });
@@ -164,7 +163,7 @@ export const getEncargos = async (_req: Request, res: Response): Promise<Respons
     ORDER BY e.id_encargo
   `;
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(sql);
+    const { rows } = await pool.query(sql);
     return res.json(rows);
   } catch (error) {
     console.error(error);
@@ -203,12 +202,12 @@ export const getEncargosByUser = async (req: Request, res: Response): Promise<Re
         )
       END AS preguntas_actuales
     FROM encargos e
-    WHERE e.user_id = ?
+    WHERE e.user_id = $1
     ORDER BY e.id_encargo
   `;
 
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(sql, [userId]);
+    const { rows } = await pool.query(sql, [userId]);
     return res.json(rows);
   } catch (error) {
     console.error(error);
@@ -220,8 +219,8 @@ export const getEncargosByUser = async (req: Request, res: Response): Promise<Re
 export const getEncargoById = async (req: Request, res: Response): Promise<Response> => {
   const id = Number(req.params.id);
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM encargos WHERE id_encargo = ?",
+    const { rows } = await pool.query(
+      "SELECT * FROM encargos WHERE id_encargo = $1",
       [id]
     );
     if (rows.length === 0) {
@@ -239,8 +238,8 @@ export const getSubencargos = async (req: Request, res: Response): Promise<Respo
   const parentId = Number(req.params.id);
   if (isNaN(parentId)) return res.status(400).json({ message: "ID de padre inválido" });
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM encargos WHERE encargo_padre_id = ?",
+    const { rows } = await pool.query(
+      "SELECT * FROM encargos WHERE encargo_padre_id = $1",
       [parentId]
     );
     return res.json(rows);
@@ -274,17 +273,17 @@ export const updateEncargo = async (req: Request, res: Response): Promise<Respon
       id_academia?: number;
     } = req.body;
 
-    const [result] = await pool.query<ResultSetHeader>(
+    const result = await pool.query(
       `UPDATE encargos SET
-         nombre_encargo = ?,
-         descripcion_encargo = ?,
-         user_id = ?,
-         numero_preguntas_encargo = ?,
-         encargo_padre_id = ?,
-         id_tema = ?,
-         id_asignatura = ?,
-         id_academia = ?
-       WHERE id_encargo = ?`,
+         nombre_encargo = $1,
+         descripcion_encargo = $2,
+         user_id = $3,
+         numero_preguntas_encargo = $4,
+         encargo_padre_id = $5,
+         id_tema = $6,
+         id_asignatura = $7,
+         id_academia = $8
+       WHERE id_encargo = $9`,
       [
         nombre_encargo,
         descripcion_encargo || null,
@@ -297,7 +296,7 @@ export const updateEncargo = async (req: Request, res: Response): Promise<Respon
         id
       ]
     );
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: "Encargo no encontrado" });
     }
     return res.json({ message: "Encargo actualizado" });
@@ -311,11 +310,11 @@ export const updateEncargo = async (req: Request, res: Response): Promise<Respon
 export const deleteEncargo = async (req: Request, res: Response): Promise<Response> => {
   const id = Number(req.params.id);
   try {
-    const [result] = await pool.query<ResultSetHeader>(
-      "DELETE FROM encargos WHERE id_encargo = ?",
+    const result = await pool.query(
+      "DELETE FROM encargos WHERE id_encargo = $1",
       [id]
     );
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: "Encargo no encontrado" });
     }
     return res.json({ message: "Encargo eliminado" });
@@ -337,34 +336,34 @@ export const patchEstadoEncargo = async (
     return res.status(400).json({ message: "IDs inválidos" });
   }
 
-  let conn: PoolConnection | null = null;
+  let conn: PoolClient | null = null;
   try {
-    conn = await pool.getConnection();
-    await conn.beginTransaction();
+    conn = await pool.connect();
+    await conn.query('BEGIN');
 
     // 1) Verificamos que el estado exista
-    const [stRows] = await conn.query<RowDataPacket[]>(
-      "SELECT id_estado FROM estados WHERE id_estado = ?",
+    const { rows: stRows } = await conn.query(
+      "SELECT id_estado FROM estados WHERE id_estado = $1",
       [id_estado_encargo]
     );
     if (stRows.length === 0) {
-      await conn.rollback();
+      await conn.query('ROLLBACK');
       return res.status(400).json({ message: "Estado no válido" });
     }
 
     // 2) Actualizamos el encargo
-    const [upd] = await conn.query<ResultSetHeader>(
-      "UPDATE encargos SET id_estado_encargo = ? WHERE id_encargo = ?",
+    const upd = await conn.query(
+      "UPDATE encargos SET id_estado_encargo = $1 WHERE id_encargo = $2",
       [id_estado_encargo, id_encargo]
     );
-    if (upd.affectedRows === 0) {
-      await conn.rollback();
+    if (upd.rowCount === 0) {
+      await conn.query('ROLLBACK');
       return res.status(404).json({ message: "Encargo no encontrado" });
     }
 
     // 3) Obtenemos el posible padre
-    const [parentRows] = await conn.query<RowDataPacket[]>(
-      "SELECT encargo_padre_id FROM encargos WHERE id_encargo = ?",
+    const { rows: parentRows } = await conn.query(
+      "SELECT encargo_padre_id FROM encargos WHERE id_encargo = $1",
       [id_encargo]
     );
     const parentId = (parentRows[0]?.encargo_padre_id as number) || null;
@@ -374,23 +373,23 @@ export const patchEstadoEncargo = async (
     if (parentId) {
       if (id_estado_encargo === 1) {
         // Reactivar el padre cuando se active cualquier hijo
-        await conn.query<ResultSetHeader>(
-          "UPDATE encargos SET id_estado_encargo = 1 WHERE id_encargo = ?",
+        await conn.query(
+          "UPDATE encargos SET id_estado_encargo = 1 WHERE id_encargo = $1",
           [parentId]
         );
         padreActualizado = true;
       } else if (id_estado_encargo === 2) {
         // Cerrar padre solo si no quedan hijos activos
-        const [pendientesRows] = await conn.query<RowDataPacket[]>(
+        const { rows: pendientesRows } = await conn.query(
           `SELECT COUNT(*) AS pendientes
            FROM encargos
-           WHERE encargo_padre_id = ? AND id_estado_encargo <> 2`,
+           WHERE encargo_padre_id = $1 AND id_estado_encargo <> 2`,
           [parentId]
         );
         const pendientes = Number(pendientesRows[0].pendientes);
         if (pendientes === 0) {
-          await conn.query<ResultSetHeader>(
-            "UPDATE encargos SET id_estado_encargo = 2 WHERE id_encargo = ?",
+          await conn.query(
+            "UPDATE encargos SET id_estado_encargo = 2 WHERE id_encargo = $1",
             [parentId]
           );
           padreActualizado = true;
@@ -398,7 +397,7 @@ export const patchEstadoEncargo = async (
       }
     }
 
-    await conn.commit();
+    await conn.query('COMMIT');
     return res.json({
       message: "Estado actualizado correctamente",
       encargoId: id_encargo,
@@ -406,7 +405,7 @@ export const patchEstadoEncargo = async (
       padreActualizado
     });
   } catch (error) {
-    if (conn) await conn.rollback();
+    if (conn) await conn.query('ROLLBACK');
     console.error(error);
     return res.status(500).json({ message: "Error al actualizar estado del encargo" });
   } finally {
