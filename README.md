@@ -1,5 +1,5 @@
 
-# REST API TYPESCRIPT MYSQL JWT
+# REST API TYPESCRIPT POSTGRESQL JWT
 
 CRUD REST API with auth.
 
@@ -12,12 +12,25 @@ Modules:
 Dev Modules:
 - ts-node-dev
 - morgan
-- mysql2
 - bcryptjs
 - @types/bcryptjs
 - @types/Express
 - @types/jsonwebtoken
 - @types/morgan
+
+Additional Dependencies:
+- pg
+
+### Environment Variables
+
+Create a `.env` file in the project root and provide the PostgreSQL connection
+string from Supabase:
+
+```env
+SUPABASE_DB_URL=postgres://user:password@host:port/database
+```
+
+`SUPABASE_DB_URL` will be used by the application to connect to the database.
 
 
 ## API Reference
