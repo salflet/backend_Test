@@ -18,7 +18,8 @@ const app = express();
 // CORS para frontend local
 const allowedOrigins = [
   'https://frontend-versus.vercel.app',
-  'https://front-codex-one.vercel.app'
+  'https://front-codex-one.vercel.app',
+  'https://preguntas-test.versuselearning.com'
 ];
 
 app.use(cors({
