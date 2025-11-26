@@ -12,7 +12,7 @@ const validateToken = async (
   if (headerToken !== undefined && headerToken?.startsWith("Bearer ")) {
     const bearerToken = headerToken.slice(7);
     try {
-      await jwt.verify(bearerToken, config.SECRET);
+      await jwt.verify(bearerToken, config.JWT_SECRET);
       return next();
     } catch (error) {
       return res.status(400).json({ message: "Token Invalido" });

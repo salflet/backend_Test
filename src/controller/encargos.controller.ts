@@ -35,7 +35,7 @@ export const downloadEncargoPreguntasExcel = async (
       FROM preguntas p
       JOIN encargos e    ON p.id_encargo    = e.id_encargo
       JOIN temas t       ON e.id_tema        = t.id_tema
-      JOIN asignaturas a ON e.id_asignatura = a.id_asignatura
+      JOIN asignaturas a ON t.id_asignatura = a.id_asignatura
       WHERE e.id_encargo = $1
          OR e.encargo_padre_id = $1
       ORDER BY e.id_encargo, p.id_pregunta
@@ -110,9 +110,7 @@ export const createEncargo = async (req: Request, res: Response): Promise<Respon
       user_id,
       numero_preguntas_encargo,
       encargo_padre_id,
-      id_tema,
-      id_asignatura,
-      id_academia
+      id_tema
     }: {
       nombre_encargo: string;
       descripcion_encargo?: string;
@@ -120,26 +118,22 @@ export const createEncargo = async (req: Request, res: Response): Promise<Respon
       numero_preguntas_encargo?: number;
       encargo_padre_id?: number;
       id_tema?: number;
-      id_asignatura?: number;
-      id_academia?: number;
     } = req.body;
 
     const { rows } = await pool.query(
       `INSERT INTO encargos
          (nombre_encargo, descripcion_encargo, user_id,
           numero_preguntas_encargo, encargo_padre_id,
-          id_tema, id_asignatura, id_academia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          id_tema)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id_encargo`,
       [
         nombre_encargo,
-        descripcion_encargo || null,
+        descripcion_encargo ?? null,
         user_id,
-        numero_preguntas_encargo || 0,
-        encargo_padre_id || null,
-        id_tema || null,
-        id_asignatura || null,
-        id_academia || null
+        numero_preguntas_encargo ?? 0,
+        encargo_padre_id ?? null,
+        id_tema ?? null
       ]
     );
 
@@ -154,14 +148,33 @@ export const createEncargo = async (req: Request, res: Response): Promise<Respon
 export const getEncargos = async (_req: Request, res: Response): Promise<Response> => {
   const sql = `
     SELECT 
-      e.*, e.id_estado_encargo,
+      e.*,
+      e.id_estado_encargo,
+      COALESCE(a_hijo.id_academia, a.id_academia) AS id_academia,
       COALESCE((
         SELECT COUNT(*) 
-        FROM preguntas p 
+        FROM public.preguntas p 
         WHERE p.id_encargo = e.id_encargo
       ), 0) AS preguntas_actuales
-    FROM encargos e
-    ORDER BY e.id_encargo
+    FROM public.encargos e
+    -- relación normal (academia propia)
+    LEFT JOIN public.temas     t ON t.id_tema = e.id_tema
+    LEFT JOIN public.cursos    c ON c.id_curso = t.id_curso_tema
+    LEFT JOIN public.academias a ON a.id_academia = c.id_academia
+    -- relación con hijo (primero encontrado)
+    LEFT JOIN LATERAL (
+        SELECT a2.id_academia
+        FROM public.encargos h
+        JOIN public.temas    t2 ON t2.id_tema = h.id_tema
+        JOIN public.cursos   c2 ON c2.id_curso = t2.id_curso_tema
+        JOIN public.academias a2 ON a2.id_academia = c2.id_academia
+        WHERE h.encargo_padre_id = e.id_encargo
+        LIMIT 1
+    ) a_hijo ON TRUE
+    ORDER BY e.id_encargo;
+
+
+
   `;
   try {
     const { rows } = await pool.query(sql);
@@ -260,9 +273,7 @@ export const updateEncargo = async (req: Request, res: Response): Promise<Respon
       user_id,
       numero_preguntas_encargo,
       encargo_padre_id,
-      id_tema,
-      id_asignatura,
-      id_academia
+      id_tema
     }: {
       nombre_encargo: string;
       descripcion_encargo?: string;
@@ -270,8 +281,6 @@ export const updateEncargo = async (req: Request, res: Response): Promise<Respon
       numero_preguntas_encargo?: number;
       encargo_padre_id?: number;
       id_tema?: number;
-      id_asignatura?: number;
-      id_academia?: number;
     } = req.body;
 
     const result = await pool.query(
@@ -281,19 +290,15 @@ export const updateEncargo = async (req: Request, res: Response): Promise<Respon
          user_id = $3,
          numero_preguntas_encargo = $4,
          encargo_padre_id = $5,
-         id_tema = $6,
-         id_asignatura = $7,
-         id_academia = $8
-       WHERE id_encargo = $9`,
+         id_tema = $6
+       WHERE id_encargo = $7`,
       [
         nombre_encargo,
-        descripcion_encargo || null,
+        descripcion_encargo ?? null,
         user_id,
-        numero_preguntas_encargo || 0,
-        encargo_padre_id || null,
-        id_tema || null,
-        id_asignatura || null,
-        id_academia || null,
+        numero_preguntas_encargo ?? 0,
+        encargo_padre_id ?? null,
+        id_tema ?? null,
         id
       ]
     );

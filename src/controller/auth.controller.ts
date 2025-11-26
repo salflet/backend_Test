@@ -80,7 +80,7 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
       return res.status(400).json({ message: "Credenciales inválidas" });
     }
 
-    // Genera JWT usando config.SECRET
+    // Genera JWT usando config.JWT_SECRET
     const token = jwt.sign(
       {
         id: user.id,
@@ -89,7 +89,7 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
         role_id: user.role_id,
         id_academia: user.id_academia,
       },
-      config.SECRET,
+      config.JWT_SECRET,
       { expiresIn: "24h" }
     );
 

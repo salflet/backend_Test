@@ -7,6 +7,6 @@ export default {
   DB_USER: process.env.DB_USER || 'root',
   DB_PASSWORD: process.env.DB_PASSWORD || '',
   DB_DATABASE: process.env.DB_DATABASE || '',
-  SECRET: process.env.SECRET || 'defaultsecret',
+  JWT_SECRET: process.env.JWT_SECRET || 'defaultsecret',
   SUPABASE_DB_URL: process.env.SUPABASE_DB_URL || ''
 };
