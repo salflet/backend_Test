@@ -18,7 +18,7 @@ const app = express();
 // CORS para desarrollo - permitir localhost
 const allowedOrigins = [
   'https://frontend-versus.vercel.app',
-  'https://front-codex-one.vercel.app',
+  'https://frontend-test-sandy-mu.vercel.app',
   'https://preguntas-test.versuselearning.com',
   'http://localhost:4321',
   'http://127.0.0.1:4321', // Añadir también 127.0.0.1
@@ -27,8 +27,13 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Durante desarrollo, permitir localhost
-    if (!origin || allowedOrigins.includes(origin) || origin.includes('localhost')) {
+    // Durante desarrollo, permitir localhost y dominios de vercel
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.includes('localhost') ||
+      origin.endsWith('.vercel.app') // Permitir cualquier despliegue en Vercel
+    ) {
       callback(null, true);
     } else {
       console.log('🚫 CORS bloqueado para origin:', origin);
@@ -59,7 +64,7 @@ app.use('/api/estados', estadosRouter);
 app.post('/api/seed', async (_req, res) => {
   try {
     const { pool } = await import('./database');
-    
+
     // Insertar academias
     await pool.query(`
       INSERT INTO academias (nombre_academia, color) VALUES 
@@ -68,7 +73,7 @@ app.post('/api/seed', async (_req, res) => {
       ('Academia Superior', '#45B7D1')
       ON CONFLICT (nombre_academia) DO NOTHING
     `);
-    
+
     // Insertar estados
     await pool.query(`
       INSERT INTO estados (nombre_estado) VALUES 
@@ -78,7 +83,7 @@ app.post('/api/seed', async (_req, res) => {
       ('Pendiente')
       ON CONFLICT (nombre_estado) DO NOTHING
     `);
-    
+
     // Insertar asignaturas
     await pool.query(`
       INSERT INTO asignaturas (codigo_asignatura, nombre_asignatura) VALUES 
@@ -89,7 +94,7 @@ app.post('/api/seed', async (_req, res) => {
       ('GEO', 'Geografía')
       ON CONFLICT (codigo_asignatura) DO NOTHING
     `);
-    
+
     // Insertar cursos
     await pool.query(`
       INSERT INTO cursos (nombre_curso, id_academia) VALUES 
@@ -101,7 +106,7 @@ app.post('/api/seed', async (_req, res) => {
       ('Curso Superior', 3)
       ON CONFLICT (nombre_curso, id_academia) DO NOTHING
     `);
-    
+
     // Insertar temas
     await pool.query(`
       INSERT INTO temas (codigo_tema, nombre_tema, id_curso_tema, id_asignatura) VALUES 
@@ -113,7 +118,7 @@ app.post('/api/seed', async (_req, res) => {
       ('HIS01', 'Historia Antigua', 4, 4)
       ON CONFLICT (codigo_tema) DO NOTHING
     `);
-    
+
     // Insertar usuarios de ejemplo (con contraseñas hasheadas)
     await pool.query(`
       INSERT INTO users (username, email, password, id_academia, role) VALUES 
@@ -123,7 +128,7 @@ app.post('/api/seed', async (_req, res) => {
       ('estudiante1', 'estudiante1@academia.com', '$2a$10$example.hash.for.est', 1, 'estudiante')
       ON CONFLICT (email) DO NOTHING
     `);
-    
+
     // Insertar encargos de ejemplo
     await pool.query(`
       INSERT INTO encargos (nombre_encargo, descripcion_encargo, numero_preguntas_encargo, user_id, id_academia, id_curso, id_asignatura, id_tema) VALUES 
@@ -133,7 +138,7 @@ app.post('/api/seed', async (_req, res) => {
       ('Encargo Historia Antigua', 'Civilizaciones antiguas', 8, 3, 2, 4, 4, 6)
       ON CONFLICT DO NOTHING
     `);
-    
+
     res.json({ message: 'Datos de ejemplo insertados correctamente' });
   } catch (error) {
     console.error('Error seeding database:', error);
